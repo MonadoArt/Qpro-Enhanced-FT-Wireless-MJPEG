@@ -542,14 +542,14 @@ internal sealed class HubForm : Form
         if (FindAdb() is null) missing.Add("re-extract the release; bundled platform-tools\\adb.exe is missing");
         else if (!await HasUsbQuestAsync()) missing.Add("connect and authorize the rooted Quest Pro over USB");
         if (!Process.GetProcessesByName("vrserver").Any()) missing.Add("start SteamVR");
-        if (!Process.GetProcessesByName("VRCFaceTracking").Any()) missing.Add("start VRCFaceTracking and confirm Virtual Desktop face tracking is flowing");
+        if (!Process.GetProcessesByName("VRCFaceTracking").Any()) missing.Add("start VRCFaceTracking and confirm Virtual Desktop or Steam Link face tracking is flowing");
         if (!BackendReady()) missing.Add("run First-time setup: Set up PC runtime");
         if (missing.Count > 0)
         {
             MessageBox.Show(
                 this,
                 "Before recording:\n\n• " + string.Join("\n• ", missing) +
-                "\n\nThe current trainer uses Virtual Desktop's native TongueOut confidence as a reference label, so SteamVR and VRCFaceTracking are required during capture.",
+                "\n\nThe current trainer uses the native TongueOut confidence from Virtual Desktop or Steam Link as a reference label, so SteamVR and VRCFaceTracking are required during capture.",
                 "Capture is not ready",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
