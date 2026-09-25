@@ -34,7 +34,7 @@ rooted Quest Pro and currently supports USB only.
 - Meta developer mode and an authorized USB debugging connection
 - No separate ADB installation; the release includes the required official Android
   Platform-Tools files
-- SteamVR, Virtual Desktop, and VRCFaceTracking
+- SteamVR, Virtual Desktop or Steam Link, and VRCFaceTracking
 - A current NVIDIA display driver is strongly recommended for fast tongue-model
   training. NVIDIA hardware is optional; CPU training is supported but is much
   slower, especially for the full dataset.
@@ -52,11 +52,13 @@ DISCLAIMER: Eye convergence may NOT work on modern firmwares, I have ONLY tested
    release folders reuse the same runtime. Setup uses PyTorch's official CUDA 12.8
    wheel when an NVIDIA driver/GPU is detected and the official CPU wheel
    otherwise.
-4. Close VRCFaceTracking, then select **Install/update bridge**. Restart VRCFT.
+4. Close VRCFaceTracking, then select **Install VD bridge** (or **Install Steam Link
+   bridge**, see [Steam Link](#steam-link)). Restart VRCFT.
 5. For independent gaze, connect the rooted headset and select **Prepare gaze from
    headset**. The tool reads the stock eye archive from *your headset*, creates the
    byte-length-preserving local patch, and deletes the temporary stock copy.
-6. Start Virtual Desktop, SteamVR, and VRCFT. Confirm ordinary tracking works.
+6. Start Virtual Desktop or Steam Link, SteamVR, and VRCFT. Confirm ordinary tracking
+   works.
 7. Choose gaze and/or tongue tracking, select profiles and settings, then press
    **Apply and start selected**.
 8. Press **Stop and restore stock** before disconnecting USB or closing the app.
@@ -100,6 +102,22 @@ and headset timestamp. Without them, frames are numbered and timestamped on arri
 
 [Quest Pro Camera Service](https://github.com/MonadoArt/Quest-Pro-Camera-Network-Relay)
 is an example headset app that provides these streams on port 27280.
+## Steam Link
+
+**Install Steam Link bridge** installs a bridge that reads Steam Link's OSC face and
+eye data instead of Virtual Desktop's. Gaze and tongue work the same way as with
+Virtual Desktop.
+
+- In Steam Link's advanced settings, turn on OSC and eye/face tracking sharing, and
+  set the OSC output port to 9015 (Custom).
+- Only one bridge can be installed at a time. Each install button removes the other
+  bridge. The Steam Link one also moves the LinkFT and SteamLink VRCFT modules into
+  `research\`, because they use the same port.
+- Steam Link sends one gaze direction for both eyes, so without independent gaze
+  the eyes do not converge.
+- Set tongue **Visibility** to **Camera only**. The default mode mixes in Virtual
+  Desktop's native TongueOut, which is always zero under Steam Link.
+- Tongue capture and training still need Virtual Desktop (see below).
 
 ## Included profiles
 
