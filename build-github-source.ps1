@@ -40,6 +40,7 @@ $sourceFiles = @(
     "requirements-runtime.txt",
     "receiver.py",
     "capture_format.py",
+    "network_source.py",
     "calibration.py",
     "tongue_calibration.py",
     "tongue_still_capture.py",
