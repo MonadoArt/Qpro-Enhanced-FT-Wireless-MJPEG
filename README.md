@@ -117,7 +117,8 @@ Virtual Desktop.
   the eyes do not converge.
 - Set tongue **Visibility** to **Camera only**. The default mode mixes in Virtual
   Desktop's native TongueOut, which is always zero under Steam Link.
-- Tongue capture and training still need Virtual Desktop (see below).
+- Tongue capture works with the Steam Link bridge installed: the bridge shares Steam
+  Link's face weights with the capture tool, so VRCFT must be running during capture.
 
 ## Included profiles
 
@@ -146,8 +147,8 @@ On first launch it also copies complete personal tongue model pairs from an
 adjacent older release into the new release folder. The public package itself still
 contains only the developer v8 demonstration model.
 
-Capture currently requires Virtual Desktop tracking, SteamVR, and VRCFaceTracking
-to be running because the trainer records Quest Pro's native `TongueOut` confidence
+Capture currently requires Virtual Desktop or Steam Link tracking, SteamVR, and
+VRCFaceTracking to be running because the trainer records Quest Pro's native `TongueOut` confidence
 as an auxiliary visibility label. The hub checks these common prerequisites before
 opening the guided camera window and explains what is missing directly.
 

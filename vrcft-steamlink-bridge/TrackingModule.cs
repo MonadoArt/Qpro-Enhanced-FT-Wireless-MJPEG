@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
+using System.IO.MemoryMappedFiles;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Versioning;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using VRCFaceTracking;
@@ -8,6 +10,7 @@ using VRCFaceTracking.Core.Params.Expressions;
 
 namespace Qpro.SteamLinkBridge;
 
+[SupportedOSPlatform("windows")]
 public sealed class TrackingModule : ExtTrackingModule
 {
     private const int SteamLinkPort = 9015;
@@ -21,6 +24,12 @@ public sealed class TrackingModule : ExtTrackingModule
     private const long TongueTimeoutMs = 300;
     private const string FaceWeightPrefix = "/sl/xrfb/facew/";
     private const string GazePointAddress = "/sl/eyeTrackedGazePoint";
+    // Tongue capture needs a factory reference stream, and this module owns
+    // port 9015, so it republishes the weights in Virtual Desktop's BodyState
+    // layout (flags byte 0, 70 floats from offset 4) for vd-label-bridge.
+    private const string ReferenceMapName = "Qpro.SteamLink.BodyState";
+    private const int ReferenceStateBytes = 360;
+    private const int ReferenceExpressionOffset = 4;
 
     // XR_FB_face_tracking2 order, the same indices Virtual Desktop's shared
     // memory uses, so the mapping below is identical to the VD bridge.
@@ -84,6 +93,11 @@ public sealed class TrackingModule : ExtTrackingModule
     private bool _tongueDirty;
     private bool _customTongueWasApplied;
     private long _lastTongueTick;
+    private MemoryMappedFile? _referenceFile;
+    private MemoryMappedViewAccessor? _referenceView;
+    private readonly byte[] _referenceState = new byte[ReferenceStateBytes];
+    private long _lastPublishedFaceTick;
+    private bool _referenceValid;
 
     // Complete Steam Link reader so one module owns both VRCFT slots. It uses
     // the same stock face mapping as the Virtual Desktop bridge and substitutes
@@ -137,6 +151,18 @@ public sealed class TrackingModule : ExtTrackingModule
             Logger.LogError(error, "Could not bind the local Quest Pro tongue port {Port}", TonguePort);
         }
 
+        try
+        {
+            _referenceFile = MemoryMappedFile.CreateOrOpen(ReferenceMapName, ReferenceStateBytes);
+            _referenceView = _referenceFile.CreateViewAccessor(0, ReferenceStateBytes);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Logger.LogError(error, "Could not create the tongue capture reference map {Name}", ReferenceMapName);
+            _referenceFile?.Dispose();
+            _referenceFile = null;
+        }
+
         Logger.LogInformation(
             "Quest Pro full Steam Link bridge initialized (eye={Eye}, face={Face}); " +
             "listening for Steam Link OSC on {Port}, custom gaze falls back to Steam Link after {Timeout} ms",
@@ -153,6 +179,7 @@ public sealed class TrackingModule : ExtTrackingModule
         long now = Environment.TickCount64;
         bool faceFresh = _lastFaceTick != 0 && now - _lastFaceTick <= SteamLinkTimeoutMs;
         bool eyeFresh = _lastEyeTick != 0 && now - _lastEyeTick <= SteamLinkTimeoutMs;
+        PublishReference(faceFresh);
         if (!faceFresh && !eyeFresh && !CustomGazeFresh(now))
         {
             Thread.Sleep(10);
@@ -174,6 +201,27 @@ public sealed class TrackingModule : ExtTrackingModule
         _gazeSocket = null;
         _tongueSocket?.Dispose();
         _tongueSocket = null;
+        _referenceView?.Dispose();
+        _referenceView = null;
+        _referenceFile?.Dispose();
+        _referenceFile = null;
+    }
+
+    // Writes only when new OSC weights arrived (or once when they go stale),
+    // so the label bridge's unchanged-time check still sees a stopped source.
+    private void PublishReference(bool faceFresh)
+    {
+        if (_referenceView is null)
+            return;
+        if (faceFresh ? _lastFaceTick == _lastPublishedFaceTick : !_referenceValid)
+            return;
+        _referenceState[0] = faceFresh ? (byte)1 : (byte)0;
+        for (int index = 0; index < ExpressionCount; ++index)
+            BinaryPrimitives.WriteSingleLittleEndian(
+                _referenceState.AsSpan(ReferenceExpressionOffset + index * 4, 4), _weights[index]);
+        _referenceView.WriteArray(0, _referenceState, 0, ReferenceStateBytes);
+        _lastPublishedFaceTick = _lastFaceTick;
+        _referenceValid = faceFresh;
     }
 
     private static Dictionary<string, int> BuildWeightIndex()
